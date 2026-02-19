@@ -5,25 +5,24 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>Control de Pensión</title>
 
-<!-- Icono para iPhone -->
-<link rel="apple-touch-icon" sizes="1024x1024" href="data:image/svg+xml,
-<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'>
-<rect width='512' height='512' rx='90' fill='%230b5cff'/>
-<text x='50%' y='52%' font-size='220' text-anchor='middle' fill='white' dy='.3em'>💰</text>
-</svg>">
+<!-- Configuración iPhone -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Pensión">
+
+<!-- ICONO REAL -->
+<link rel="apple-touch-icon" sizes="1024x1024" href="icon-1024.png">
 
 <style>
 body{
-    font-family: -apple-system, Arial;
+    font-family:-apple-system, Arial;
     background:#0b1220;
     color:white;
     margin:0;
     padding:20px;
 }
 
-h1{
-    text-align:center;
-}
+h1{ text-align:center; }
 
 .card{
     background:#16213e;
@@ -61,7 +60,7 @@ button{
 
 .small{
     font-size:13px;
-    opacity:0.8;
+    opacity:.8;
 }
 </style>
 </head>
@@ -97,11 +96,13 @@ button{
 <script>
 let datos = JSON.parse(localStorage.getItem("pensionDatos")) || [];
 
+// 📅 Fecha automática
 function fechaActual(){
     const f = new Date();
     return f.toLocaleDateString("es-MX");
 }
 
+// Cálculo mensual aproximado
 function calcularMensual(monto,periodo){
     if(periodo==="Semanal") return monto*4.33;
     if(periodo==="Catorcenal") return monto*2.17;
@@ -130,13 +131,14 @@ function guardar(){
     });
 
     localStorage.setItem("pensionDatos",JSON.stringify(datos));
+
     porcentaje.value="";
     ingreso.value="";
     mostrar();
 }
 
 function eliminar(index){
-    if(confirm("Eliminar registro?")){
+    if(confirm("¿Eliminar registro?")){
         datos.splice(index,1);
         localStorage.setItem("pensionDatos",JSON.stringify(datos));
         mostrar();
@@ -145,15 +147,15 @@ function eliminar(index){
 
 function editar(index){
     const d = datos[index];
-    porcentaje.value=d.porcentaje;
-    ingreso.value=d.ingreso;
-    periodo.value=d.periodo;
+    porcentaje.value = d.porcentaje;
+    ingreso.value = d.ingreso;
+    periodo.value = d.periodo;
     eliminar(index);
 }
 
 function borrarTodo(){
-    if(confirm("Borrar todo el historial?")){
-        datos=[];
+    if(confirm("¿Borrar todo el historial?")){
+        datos = [];
         localStorage.removeItem("pensionDatos");
         mostrar();
     }
@@ -164,9 +166,9 @@ function mostrar(){
     let total=0;
 
     datos.forEach((d,i)=>{
-        total+=d.pago;
+        total += d.pago;
 
-        lista.innerHTML+=`
+        lista.innerHTML += `
         <div class="historial-item">
             <b>${d.fecha}</b><br>
             ${d.porcentaje}% de $${d.ingreso.toFixed(2)} (${d.periodo})<br>
