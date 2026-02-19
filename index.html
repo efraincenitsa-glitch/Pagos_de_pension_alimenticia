@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Pensión PRO</title>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0f172a">
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Pensión PRO">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" sizes="1024x1024" href="icono-1024.png">
+
+<style>
+:root{--bg:#0f172a;--card:#1e293b;--header:#111827;--text:#fff;--ok:#22c55e;--danger:#ef4444;}
+body{margin:0;font-family:Arial;background:var(--bg);color:var(--text);}
+header{background:var(--header);padding:16px;text-align:center;font-size:22px;font-weight:bold;}
+.container{padding:15px;max-width:720px;margin:auto;}
+.card{background:var(--card);padding:15px;border-radius:14px;margin-bottom:15px;}
+input,select,button{width:100%;padding:12px;margin:6px 0;border:none;border-radius:10px;font-size:16px;}
+button{background:var(--ok);color:#fff;font-weight:bold;}
+.delete{background:var(--danger);}
+.item{background:#0f172a;padding:12px;border-radius:12px;margin-bottom:10px;}
+</style>
+</head>
+
+<body>
+
+<header>Pensión Alimenticia PRO</header>
+
+<div class="container">
+
+<div class="card">
+<h3>Configuración</h3>
+
+<input id="porcentaje" placeholder="Porcentaje %">
+<input id="ingreso" placeholder="Ingreso">
+<select id="periodo">
+<option>Semanal</option>
+<option>Catorcenal</option>
+<option>Quincenal</option>
+<option>Mensual</option>
+</select>
+
+<input id="fecha" type="date">
+
+<button onclick="registrar()">Registrar Pago</button>
+
+<div id="resultado"></div>
+</div>
+
+<div class="card">
+<h3>Historial</h3>
+<div id="historial"></div>
+<button class="delete" onclick="borrarTodo()">Borrar Todo</button>
+</div>
+
+</div>
+
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('service-worker.js');
+}
+
+fecha.value = new Date().toISOString().split('T')[0];
+
+let datos = JSON.parse(localStorage.getItem('pensionPRO')) || [];
+
+function registrar(){
+  const p = parseFloat(porcentaje.value);
+  const ing = parseFloat(ingreso.value);
+
+  if(isNaN(p)||isNaN(ing)){alert("Completa datos");return;}
+
+  const pen = ing*p/100;
+  const libre = ing-pen;
+
+  const r={
+    fecha:fecha.value,
+    porcentaje:p,
+    ingreso:ing,
+    periodo:periodo.value,
+    pension:pen,
+    libre:libre
+  };
+
+  datos.push(r);
+  localStorage.setItem('pensionPRO',JSON.stringify(datos));
+
+  resultado.innerHTML =
+    `Pensión: $${pen.toFixed(2)}<br>Libre: $${libre.toFixed(2)}`;
+
+  mostrar();
+}
+
+function mostrar(){
+  historial.innerHTML="";
+  datos.slice().reverse().forEach(r=>{
+    historial.innerHTML+=`
+    <div class="item">
+    <b>${r.fecha}</b> (${r.periodo})<br>
+    Ingreso: $${r.ingreso}<br>
+    %: ${r.porcentaje}<br>
+    Pensión: $${r.pension.toFixed(2)}<br>
+    Libre: $${r.libre.toFixed(2)}
+    </div>`;
+  });
+}
+
+function borrarTodo(){
+  if(confirm("¿Borrar todo?")){
+    datos=[];
+    localStorage.removeItem('pensionPRO');
+    mostrar();
+    resultado.innerHTML="";
+  }
+}
+
+mostrar();
+</script>
+
+</body>
+</html>
