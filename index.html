@@ -1,5 +1,463 @@
 <!DOCTYPE html>
-<html lang='es'>
-<head><meta charset='UTF-8'><title>Pension PRO</title></head>
-<body>Archivo base listo</body>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Pensión PRO</title>
+
+icono-1024.png
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+<style>
+  :root{
+    --bg:#0f172a;        /* slate-900 */
+    --card:#1e293b;      /* slate-800 */
+    --header:#111827;    /* gray-900  */
+    --text:#ffffff;
+    --muted:#9ca3af;     /* gray-400 */
+    --ok:#22c55e;        /* green-500 */
+    --danger:#ef4444;    /* red-500 */
+  }
+
+  *{ box-sizing:border-box; }
+  body{
+    margin:0;
+    font-family:Arial, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell;
+    background:var(--bg);
+    color:var(--text);
+  }
+
+  header{
+    background:var(--header);
+    padding:16px;
+    text-align:center;
+    font-size:22px;
+    font-weight:bold;
+  }
+
+  .container{ padding:15px; max-width:720px; margin:0 auto; }
+
+  .card{
+    background:var(--card);
+    padding:15px;
+    border-radius:14px;
+    margin-bottom:15px;
+  }
+
+  .row{ display:grid; gap:10px; grid-template-columns:1fr; }
+  .row-2{ grid-template-columns:1fr; }
+  @media (min-width:560px){
+    .row-2{ grid-template-columns:1fr 1fr; }
+  }
+
+  label{ display:block; margin:6px 0 2px; font-weight:600; }
+
+  input, select{
+    width:100%;
+    padding:12px;
+    margin:6px 0;
+    border:none;
+    border-radius:10px;
+    font-size:16px;
+    background:#0b1226;
+    color:var(--text);
+    outline:none;
+  }
+
+  button{
+    width:100%;
+    padding:14px;
+    margin-top:8px;
+    border:none;
+    border-radius:12px;
+    font-size:18px;
+    font-weight:bold;
+    background:var(--ok);
+    color:white;
+    cursor:pointer;
+  }
+  button:disabled{ opacity:.6; cursor:not-allowed; }
+  .delete{ background:var(--danger); }
+
+  .btn-row{
+    display:flex;
+    gap:10px;
+    margin-top:8px;
+  }
+  .btn-secondary{ background:#334155; color:#fff; } /* slate-700 */
+
+  .small{
+    font-size:14px;
+    padding:8px 10px;
+    border-radius:10px;
+    width:auto;
+  }
+  .small.danger{ background:var(--danger); }
+  .small.edit{ background:#3b82f6; } /* blue-500 */
+
+  .item{
+    background:#0f172a;
+    padding:12px;
+    border-radius:12px;
+    margin-bottom:10px;
+    border:1px solid rgba(255,255,255,.06);
+  }
+  .item-top{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    margin-bottom:6px;
+  }
+  .tag{
+    display:inline-block;
+    padding:2px 8px;
+    border-radius:999px;
+    background:#0b1226;
+    border:1px solid rgba(255,255,255,.08);
+    color:#cbd5e1; /* slate-300 */
+    font-size:12px;
+  }
+
+  #estadoEdicion{
+    font-size:14px;
+    color:#fbbf24; /* amber-400 */
+    margin-top:6px;
+  }
+</style>
+</head>
+
+<body>
+
+<header>Pensión Alimenticia PRO</header>
+
+<div class="container">
+
+  <div class="card">
+    <h3>Configuración</h3>
+
+    <div class="row row-2">
+      <div>
+        <label for="porcentaje">Porcentaje</label>
+        <!-- type="text" para permitir % y formateo -->
+        <input id="porcentaje" type="text" placeholder="Ej. 30%" inputmode="decimal" autocomplete="off">
+      </div>
+
+      <div>
+        <label for="ingreso">Ingreso</label>
+        <!-- type="text" para permitir $ y separadores -->
+        <input id="ingreso" type="text" placeholder="Ej. $6,000.00" inputmode="decimal" autocomplete="off">
+      </div>
+    </div>
+
+    <div class="row row-2">
+      <div>
+        <label for="periodo">Periodo</label>
+        <select id="periodo">
+          <option>Semanal</option>
+          <option>Catorcenal</option>
+          <option>Quincenal</option>
+          <option>Mensual</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="fecha">Fecha</label>
+        <input id="fecha" type="date">
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button type="button" id="btnRegistrar">Registrar Pago</button>
+      <button type="button" id="btnCancelar" class="btn-secondary" style="display:none">Cancelar edición</button>
+    </div>
+
+    <div id="estadoEdicion"></div>
+    <div id="resultado" style="margin-top:10px;"></div>
+  </div>
+
+  <div class="card">
+    <h3>Historial</h3>
+    <div id="historial"></div>
+    <button class="delete" type="button" id="btnBorrarTodo">Borrar Todo</button>
+  </div>
+
+</div>
+
+<script>
+  // =================== Utilidades de parseo/formateo ===================
+
+  // Convierte una cadena con símbolos locales a número JS
+  function parseLocaleNumber(str) {
+    if (!str) return NaN;
+    let s = String(str).trim();
+
+    // Quita todo excepto dígitos, coma, punto y signo menos
+    s = s.replace(/[^0-9.,-]/g, '');
+    if (!s) return NaN;
+
+    const lastComma = s.lastIndexOf(',');
+    const lastDot   = s.lastIndexOf('.');
+    let decimalSep = null;
+
+    if (lastComma === -1 && lastDot === -1) {
+      return parseFloat(s.replace(/[^\d-]/g, ''));
+    }
+    if (lastDot > lastComma) decimalSep = '.';
+    else if (lastComma > -1) decimalSep = ','; // coma como decimal si aplica
+
+    let normalized = s;
+    if (decimalSep) {
+      // quita el separador de miles (el opuesto) y normaliza el decimal a punto
+      const thousandsRE = decimalSep === '.' ? /,/g : /\./g;
+      normalized = normalized.replace(thousandsRE, '');
+      normalized = normalized.replace(decimalSep, '.');
+    }
+
+    // asegura único punto decimal
+    const parts = normalized.split('.');
+    if (parts.length > 2) normalized = parts.shift() + '.' + parts.join('');
+
+    const n = parseFloat(normalized);
+    return Number.isFinite(n) ? n : NaN;
+  }
+
+  // Dinero MXN, 2 decimales
+  function formatMoney(n, opts = {}) {
+    if (!Number.isFinite(n)) return '';
+    return n.toLocaleString('es-MX', {
+      style: 'currency',
+      currency: 'MXN',
+      minimumFractionDigits: opts.minFD ?? 2,
+      maximumFractionDigits: opts.maxFD ?? 2
+    });
+  }
+
+  // Número plano con localización (sin símbolo de moneda)
+  function formatPlainNumber(n, opts = {}) {
+    if (!Number.isFinite(n)) return '';
+    return n.toLocaleString('es-MX', {
+      minimumFractionDigits: opts.minFD ?? 0,
+      maximumFractionDigits: opts.maxFD ?? 2
+    });
+  }
+
+  function formatPercent(n, opts = {}) {
+    if (!Number.isFinite(n)) return '';
+    return formatPlainNumber(n, opts) + '%';
+  }
+
+  function getCurrencyValue(str) {
+    return parseLocaleNumber(str);
+  }
+
+  function getPercentValue(str) {
+    const n = parseLocaleNumber(str);
+    if (!Number.isFinite(n)) return NaN;
+    return Math.min(100, Math.max(0, n)); // 0–100
+  }
+
+  // =================== Referencias a elementos ===================
+  const elPorcentaje = document.getElementById('porcentaje');
+  const elIngreso    = document.getElementById('ingreso');
+  const elPeriodo    = document.getElementById('periodo');
+  const elFecha      = document.getElementById('fecha');
+
+  const btnRegistrar = document.getElementById('btnRegistrar');
+  const btnCancelar  = document.getElementById('btnCancelar');
+  const btnBorrarAll = document.getElementById('btnBorrarTodo');
+
+  const resultadoEl  = document.getElementById('resultado');
+  const historialEl  = document.getElementById('historial');
+  const estadoEdicionEl = document.getElementById('estadoEdicion');
+
+  // Fecha automática hoy
+  elFecha.value = new Date().toISOString().split('T')[0];
+
+  // Estado global
+  let datos = JSON.parse(localStorage.getItem('pensionPRO')) || [];
+  let editIndex = null; // índice del registro en edición (null si no hay)
+
+  // =================== Lógica de negocio ===================
+  function calcular(p, ingreso) {
+    const pension = ingreso * p / 100;
+    return { pension, libre: ingreso - pension };
+  }
+
+  function limpiarResultado() {
+    resultadoEl.innerHTML = '';
+  }
+
+  function setModoEdicion(idx) {
+    editIndex = idx;
+    btnRegistrar.textContent = 'Guardar cambios';
+    btnCancelar.style.display = 'inline-block';
+    estadoEdicionEl.textContent = 'Editando registro existente. Guarda los cambios o cancela la edición.';
+  }
+
+  function salirModoEdicion() {
+    editIndex = null;
+    btnRegistrar.textContent = 'Registrar Pago';
+    btnCancelar.style.display = 'none';
+    estadoEdicionEl.textContent = '';
+  }
+
+  function registrar() {
+    const pVal       = getPercentValue(elPorcentaje.value);
+    const ingresoVal = getCurrencyValue(elIngreso.value);
+    const periodoVal = elPeriodo.value;
+    const fechaVal   = elFecha.value;
+
+    if (!Number.isFinite(pVal) || !Number.isFinite(ingresoVal)) {
+      alert('Completa los datos (porcentaje e ingreso válidos).');
+      return;
+    }
+
+    const r = calcular(pVal, ingresoVal);
+    const registro = {
+      fecha: fechaVal,
+      porcentaje: pVal,
+      ingreso: ingresoVal,
+      periodo: periodoVal,
+      pension: r.pension,
+      libre: r.libre
+    };
+
+    if (editIndex !== null) {
+      datos[editIndex] = registro;
+      salirModoEdicion();
+    } else {
+      datos.push(registro);
+    }
+
+    localStorage.setItem('pensionPRO', JSON.stringify(datos));
+
+    mostrarResultado(registro);
+    mostrarHistorial();
+  }
+
+  function mostrarResultado(r) {
+    resultadoEl.innerHTML =
+      `<b>Pensión:</b> ${formatMoney(r.pension)}<br>
+       <b>Libre:</b> ${formatMoney(r.libre)}`;
+  }
+
+  function mostrarHistorial() {
+    historialEl.innerHTML = '';
+
+    if (datos.length === 0) {
+      historialEl.innerHTML = '<div class="item">Sin registros</div>';
+      return;
+    }
+
+    // Mostrar del más reciente al más antiguo
+    datos.slice().reverse().forEach((r, i) => {
+      const idx = datos.length - 1 - i; // índice real
+
+      const item = document.createElement('div');
+      item.className = 'item';
+
+      const top = document.createElement('div');
+      top.className = 'item-top';
+      top.innerHTML = `
+        <div>
+          <b>${r.fecha}</b> <span class="tag">${r.periodo}</span>
+        </div>
+        <div class="item-actions">
+          <button class="small edit" type="button" onclick="editarRegistro(${idx})">Editar</button>
+          <button class="small danger" type="button" onclick="eliminarRegistro(${idx})">Eliminar</button>
+        </div>
+      `;
+
+      const body = document.createElement('div');
+      body.innerHTML = `
+        Ingreso: ${formatMoney(r.ingreso)}<br>
+        %: ${formatPercent(r.porcentaje)}<br>
+        Pensión: ${formatMoney(r.pension)}<br>
+        Libre: ${formatMoney(r.libre)}
+      `;
+
+      item.appendChild(top);
+      item.appendChild(body);
+      historialEl.appendChild(item);
+    });
+  }
+
+  function eliminarRegistro(idx) {
+    if (!Number.isInteger(idx) || idx < 0 || idx >= datos.length) return;
+    if (confirm('¿Eliminar este registro?')) {
+      datos.splice(idx, 1);
+      localStorage.setItem('pensionPRO', JSON.stringify(datos));
+      if (editIndex === idx) salirModoEdicion();
+      mostrarHistorial();
+      limpiarResultado();
+    }
+  }
+
+  function editarRegistro(idx) {
+    if (!Number.isInteger(idx) || idx < 0 || idx >= datos.length) return;
+    const r = datos[idx];
+
+    // Carga valores "en bruto" (sin símbolos) para edición fluida
+    elPorcentaje.value = formatPlainNumber(r.porcentaje);                 // ej: 30
+    elIngreso.value    = formatPlainNumber(r.ingreso, { minFD: 0, maxFD: 2 }); // ej: 6000.00 -> "6,000" o "6000"
+    elPeriodo.value    = r.periodo;
+    elFecha.value      = r.fecha;
+
+    setModoEdicion(idx);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    elIngreso.focus();
+  }
+
+  function cancelarEdicion() {
+    salirModoEdicion();
+  }
+
+  function borrarTodo() {
+    if (confirm('¿Borrar TODO el historial?')) {
+      datos = [];
+      localStorage.removeItem('pensionPRO');
+      mostrarHistorial();
+      limpiarResultado();
+      salirModoEdicion();
+    }
+  }
+
+  // =================== Exponer funciones globales (botones inline) ===================
+  window.eliminarRegistro = eliminarRegistro;
+  window.editarRegistro   = editarRegistro;
+
+  // =================== Formateo en focus/blur ===================
+  // INGRESO: limpiar símbolos al entrar, formatear al salir
+  elIngreso.addEventListener('focus', () => {
+    const n = getCurrencyValue(elIngreso.value);
+    elIngreso.value = Number.isFinite(n) ? String(n) : ''; // sin $ ni comas
+  });
+  elIngreso.addEventListener('blur', () => {
+    const n = getCurrencyValue(elIngreso.value);
+    elIngreso.value = Number.isFinite(n) ? formatMoney(n) : '';
+  });
+
+  // PORCENTAJE: limpiar % al entrar, formatear al salir
+  elPorcentaje.addEventListener('focus', () => {
+    const n = getPercentValue(elPorcentaje.value);
+    elPorcentaje.value = Number.isFinite(n) ? String(n) : ''; // sin %
+  });
+  elPorcentaje.addEventListener('blur', () => {
+    const n = getPercentValue(elPorcentaje.value);
+    elPorcentaje.value = Number.isFinite(n) ? formatPercent(n) : '';
+  });
+
+  // =================== Acciones principales ===================
+  btnRegistrar.addEventListener('click', registrar);
+  btnCancelar.addEventListener('click', cancelarEdicion);
+  btnBorrarAll.addEventListener('click', borrarTodo);
+
+  // Render inicial
+  mostrarHistorial();
+</script>
+
+</body>
 </html>
