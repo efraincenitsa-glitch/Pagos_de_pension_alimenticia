@@ -26,7 +26,6 @@ button{background:var(--ok);color:#fff;font-weight:bold;}
 .edit{background:#3b82f6;}
 .item{background:#0f172a;padding:12px;border-radius:12px;margin-bottom:10px;}
 .small{padding:8px;margin-top:6px;}
-.backup{background:#f59e0b;}
 </style>
 </head>
 
@@ -58,17 +57,31 @@ button{background:var(--ok);color:#fff;font-weight:bold;}
 <div class="card">
 <h3>Historial</h3>
 <div id="historial"></div>
-
-<button class="backup" onclick="exportarRespaldo()">Respaldar datos</button>
-<input type="file" id="importar" style="display:none" onchange="importarRespaldo(event)">
-<button class="edit" onclick="document.getElementById('importar').click()">Restaurar respaldo</button>
-
 <button class="delete" onclick="borrarTodo()">Borrar Todo</button>
 </div>
 
 </div>
 
+<!-- 🔥 FIREBASE SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
 <script>
+// 🔥 CONFIGURACIÓN DE TU PROYECTO
+const firebaseConfig = {
+  apiKey: "AIzaSyDTV8IdIsfFFU5X30dOckR5_9pmLqgidBY",
+  authDomain: "pensionpro-1e559.firebaseapp.com",
+  databaseURL: "https://pensionpro-1e559-default-rtdb.firebaseio.com",
+  projectId: "pensionpro-1e559",
+  storageBucket: "pensionpro-1e559.firebasestorage.app",
+  messagingSenderId: "354313368373",
+  appId: "1:354313368373:web:becef8b8ff21d51c58927c"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// SERVICE WORKER
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('service-worker.js');
 }
@@ -78,38 +91,20 @@ fecha.value = new Date().toISOString().split('T')[0];
 let datos = JSON.parse(localStorage.getItem('pensionPRO')) || [];
 let editIndex = null;
 
-/* ===== RESPALDO AUTOMÁTICO EXTRA EN INDEXEDDB ===== */
-const dbReq = indexedDB.open("PensionPRO_DB",1);
-dbReq.onupgradeneeded = e=>{
-  e.target.result.createObjectStore("backup");
-};
-
-function guardarBackupExtra(){
-  const req = indexedDB.open("PensionPRO_DB",1);
-  req.onsuccess = e=>{
-    const db = e.target.result;
-    const tx = db.transaction("backup","readwrite");
-    tx.objectStore("backup").put(datos,"datos");
-  };
+// 🔄 RESPALDO AUTOMÁTICO NUBE
+function respaldarNube(){
+  db.ref("pensionPRO").set(datos);
 }
 
-function cargarBackupExtra(){
-  const req = indexedDB.open("PensionPRO_DB",1);
-  req.onsuccess = e=>{
-    const db = e.target.result;
-    const tx = db.transaction("backup","readonly");
-    const get = tx.objectStore("backup").get("datos");
-    get.onsuccess = ()=>{
-      if(get.result && datos.length===0){
-        datos = get.result;
-        mostrar();
-      }
-    };
-  };
-}
-cargarBackupExtra();
+// ⬇️ RESTAURAR NUBE AL INICIAR
+db.ref("pensionPRO").once("value", snap=>{
+  if(snap.exists()){
+    datos = snap.val();
+    localStorage.setItem('pensionPRO', JSON.stringify(datos));
+    mostrar();
+  }
+});
 
-/* ===== REGISTRO ===== */
 function registrar(){
   const p = parseFloat(porcentaje.value);
   const ing = parseFloat(ingreso.value);
@@ -136,7 +131,7 @@ function registrar(){
   }
 
   localStorage.setItem('pensionPRO',JSON.stringify(datos));
-  guardarBackupExtra(); // respaldo extra automático
+  respaldarNube();
 
   resultado.innerHTML =
     `Pensión: $${pen.toFixed(2)}<br>Libre: $${libre.toFixed(2)}`;
@@ -144,7 +139,6 @@ function registrar(){
   mostrar();
 }
 
-/* ===== MOSTRAR ===== */
 function mostrar(){
   historial.innerHTML="";
   datos.slice().reverse().forEach((r,i)=>{
@@ -164,7 +158,6 @@ function mostrar(){
   });
 }
 
-/* ===== EDITAR / ELIMINAR ===== */
 function editar(idx){
   const r = datos[idx];
   porcentaje.value = r.porcentaje;
@@ -179,7 +172,7 @@ function eliminar(idx){
   if(confirm("¿Eliminar este registro?")){
     datos.splice(idx,1);
     localStorage.setItem('pensionPRO',JSON.stringify(datos));
-    guardarBackupExtra();
+    respaldarNube();
     mostrar();
   }
 }
@@ -188,35 +181,10 @@ function borrarTodo(){
   if(confirm("¿Borrar todo?")){
     datos=[];
     localStorage.removeItem('pensionPRO');
-    guardarBackupExtra();
+    respaldarNube();
     mostrar();
     resultado.innerHTML="";
   }
-}
-
-/* ===== EXPORTAR RESPALDO ===== */
-function exportarRespaldo(){
-  const blob = new Blob([JSON.stringify(datos)],{type:"application/json"});
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "respaldo_pension_PRO.json";
-  a.click();
-}
-
-/* ===== IMPORTAR RESPALDO ===== */
-function importarRespaldo(e){
-  const file = e.target.files[0];
-  if(!file) return;
-
-  const reader = new FileReader();
-  reader.onload = ev=>{
-    datos = JSON.parse(ev.target.result);
-    localStorage.setItem('pensionPRO',JSON.stringify(datos));
-    guardarBackupExtra();
-    mostrar();
-    alert("Respaldo restaurado");
-  };
-  reader.readAsText(file);
 }
 
 mostrar();
