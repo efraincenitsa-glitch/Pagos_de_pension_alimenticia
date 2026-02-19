@@ -3,78 +3,141 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pensión PRO Privado</title>
 
-<title>Pensión Alimenticia PRO ULTRA</title>
-
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#0f172a">
-
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Pensión PRO">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<link rel="apple-touch-icon" sizes="1024x1024" href="icono-1024.png">
+<link rel="apple-touch-icon" sizes="1024x1024" href="icono.png">
 
 <style>
 body{
-  margin:0;
-  font-family:Arial;
-  background:#0b1220;
-  color:white;
-  text-align:center;
-}
-
-.container{
-  padding:40px 20px;
-}
-
-button{
-  padding:14px 24px;
-  font-size:16px;
-  border:none;
-  border-radius:12px;
-  background:#22c55e;
-  color:white;
-  font-weight:bold;
-  cursor:pointer;
-  margin-top:20px;
-}
-
-button.logout{
-  background:#ef4444;
+    font-family:Arial;
+    background:#0f172a;
+    color:white;
+    text-align:center;
+    padding:20px;
 }
 
 .card{
-  background:#111827;
-  border-radius:18px;
-  padding:20px;
-  margin-top:20px;
-  box-shadow:0 0 20px rgba(0,0,0,0.4);
+    background:#1e293b;
+    padding:20px;
+    border-radius:15px;
+    max-width:420px;
+    margin:auto;
+    box-shadow:0 0 25px rgba(0,0,0,.6);
 }
+
+input,select,button{
+    width:100%;
+    padding:12px;
+    margin:8px 0;
+    border-radius:8px;
+    border:none;
+    font-size:16px;
+}
+
+button{
+    background:#22c55e;
+    color:white;
+    font-weight:bold;
+    cursor:pointer;
+}
+
+button:hover{
+    background:#16a34a;
+}
+
+#logout{
+    background:#ef4444;
+}
+
+#app{
+    display:none;
+}
+
+table{
+    width:100%;
+    margin-top:15px;
+    border-collapse:collapse;
+}
+
+td,th{
+    border-bottom:1px solid #334155;
+    padding:6px;
+}
+
 </style>
 </head>
 
 <body>
 
-<div id="app" class="container">
-  ⏳ Cargando...
+<h1>🔒 Pensión PRO Privado</h1>
+
+<!-- LOGIN -->
+<div id="login" class="card">
+
+    <h2>Acceso Privado</h2>
+
+    <button id="googleLogin">
+        🔐 Iniciar con Google
+    </button>
+
+    <p>Solo autorizado para:<br>
+    <b>jose.efrass@gmail.com</b></p>
+
 </div>
 
+<!-- APP -->
+<div id="app" class="card">
 
+    <h2>Control de Pagos</h2>
+
+    <input id="ingreso" type="number" placeholder="Monto ganado">
+
+    <input id="porcentaje" type="number" placeholder="Porcentaje (%)">
+
+    <select id="periodo">
+        <option value="Semanal">Semanal</option>
+        <option value="Catorcenal">Catorcenal</option>
+        <option value="Quincenal">Quincenal</option>
+        <option value="Mensual">Mensual</option>
+    </select>
+
+    <button onclick="guardar()">Guardar pago</button>
+
+    <button id="logout">Cerrar sesión</button>
+
+    <h3>Historial</h3>
+
+    <table id="tabla">
+        <tr>
+            <th>Fecha</th>
+            <th>Pagar</th>
+            <th>Libre</th>
+        </tr>
+    </table>
+
+</div>
+
+<!-- FIREBASE -->
 <script type="module">
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import {
   getAuth,
   GoogleAuthProvider,
-  signInWithRedirect,
-  getRedirectResult,
-  onAuthStateChanged,
-  signOut
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  signInWithPopup,
+  signOut,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  getDocs,
+  query,
+  orderBy
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-// 🔥 TU CONFIGURACIÓN (YA CORRECTA)
 
 const firebaseConfig = {
   apiKey: "AIzaSyDTV8IdIsfFFU5X30dOckR5_9pmLqgidBY",
@@ -85,74 +148,118 @@ const firebaseConfig = {
   appId: "1:354313368373:web:becef8b8ff21d51c58927c"
 };
 
-
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const provider = new GoogleAuthProvider();
+const db = getFirestore(app);
 
-const appDiv = document.getElementById("app");
+const EMAIL_AUTORIZADO = "jose.efrass@gmail.com";
 
 
-// 🔐 LOGIN
-window.loginGoogle = () => {
-  signInWithRedirect(auth, provider);
+// 🔐 LOGIN GOOGLE
+
+document.getElementById("googleLogin").onclick = async () => {
+
+    const provider = new GoogleAuthProvider();
+
+    try{
+        await signInWithPopup(auth, provider);
+    }catch(e){
+        alert("Error al iniciar sesión");
+        console.error(e);
+    }
 };
 
 
-// ⭐ PROCESAR REGRESO DE GOOGLE
-getRedirectResult(auth).catch(() => {});
+// 🔍 VERIFICAR SESIÓN
 
-
-// ⭐ CONTROL DE SESIÓN
 onAuthStateChanged(auth, user => {
 
-  if (user) {
+    if(user){
 
-    // 🔒 SOLO TU CORREO (OPCIONAL)
-    const correoPermitido = "jose.efrass@gmail.com";
+        if(user.email !== EMAIL_AUTORIZADO){
 
-    if (user.email !== correoPermitido) {
-      signOut(auth);
-      appDiv.innerHTML = `
-        <h2>⛔ Acceso no autorizado</h2>
-      `;
-      return;
+            alert("⛔ No autorizado");
+            signOut(auth);
+            return;
+        }
+
+        document.getElementById("login").style.display="none";
+        document.getElementById("app").style.display="block";
+
+        cargar();
+
+    }else{
+
+        document.getElementById("login").style.display="block";
+        document.getElementById("app").style.display="none";
     }
-
-    appDiv.innerHTML = `
-      <h1>Pensión Alimenticia PRO ULTRA 🔐</h1>
-
-      <div class="card">
-        <h3>✔️ Sesión activa</h3>
-        <p>${user.email}</p>
-      </div>
-
-      <div class="card">
-        <h3>📊 Sistema listo</h3>
-        <p>Tu aplicación privada está protegida y sincronizada.</p>
-      </div>
-
-      <button class="logout" onclick="logout()">Cerrar sesión</button>
-    `;
-
-  } else {
-
-    appDiv.innerHTML = `
-      <h1>Pensión Alimenticia PRO ULTRA 🔐</h1>
-
-      <p>Acceso privado</p>
-
-      <button onclick="loginGoogle()">
-        Entrar con Google
-      </button>
-    `;
-  }
-
 });
 
 
-// 🔓 LOGOUT
-window.logout = () => signOut(auth);
+// 🚪 LOGOUT
+
+document.getElementById("logout").onclick = () => signOut(auth);
+
+
+// 💾 GUARDAR EN LA NUBE
+
+window.guardar = async () => {
+
+    const ingreso = Number(document.getElementById("ingreso").value);
+    const porcentaje = Number(document.getElementById("porcentaje").value);
+
+    if(!ingreso || !porcentaje){
+        alert("Completa los datos");
+        return;
+    }
+
+    const pagar = ingreso * porcentaje / 100;
+    const libre = ingreso - pagar;
+
+    await addDoc(collection(db,"pagos"),{
+
+        fecha: new Date().toLocaleString(),
+        ingreso,
+        porcentaje,
+        pagar,
+        libre
+    });
+
+    alert("Guardado en la nube ☁️");
+
+    cargar();
+};
+
+
+// 📋 CARGAR HISTORIAL
+
+async function cargar(){
+
+    const tabla = document.getElementById("tabla");
+
+    tabla.innerHTML = `
+        <tr>
+            <th>Fecha</th>
+            <th>Pagar</th>
+            <th>Libre</th>
+        </tr>`;
+
+    const q = query(collection(db,"pagos"), orderBy("fecha"));
+
+    const datos = await getDocs(q);
+
+    datos.forEach(doc => {
+
+        const d = doc.data();
+
+        tabla.innerHTML += `
+            <tr>
+                <td>${d.fecha}</td>
+                <td>$${d.pagar.toFixed(2)}</td>
+                <td>$${d.libre.toFixed(2)}</td>
+            </tr>`;
+    });
+}
 
 </script>
 
