@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Pensión PRO</title>
+<title>Pensión ULTRA PRO 🔐</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0f172a">
@@ -26,17 +26,30 @@ button{background:var(--ok);color:#fff;font-weight:bold;}
 .edit{background:#3b82f6;}
 .item{background:#0f172a;padding:12px;border-radius:12px;margin-bottom:10px;}
 .small{padding:8px;margin-top:6px;}
+.logout{background:#f59e0b;}
+.login{background:#3b82f6;}
 </style>
 </head>
 
 <body>
 
-<header>Pensión Alimenticia PRO</header>
+<header>Pensión Alimenticia 🔐 PRIVADA</header>
 
 <div class="container">
 
+<div id="loginBox" class="card" style="text-align:center">
+<h3>Acceso privado</h3>
+<button class="login" onclick="login()">Entrar con Google</button>
+</div>
+
+<div id="app" style="display:none">
+
 <div class="card">
-<h3>Configuración</h3>
+<button class="logout" onclick="logout()">Cerrar sesión</button>
+</div>
+
+<div class="card">
+<h3>Registrar Pago</h3>
 
 <input id="porcentaje" placeholder="Porcentaje %">
 <input id="ingreso" placeholder="Ingreso">
@@ -61,13 +74,15 @@ button{background:var(--ok);color:#fff;font-weight:bold;}
 </div>
 
 </div>
+</div>
 
-<!-- 🔥 FIREBASE SDK -->
+<!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
 <script>
-// 🔥 CONFIGURACIÓN DE TU PROYECTO
+// 🔥 TU CONFIG
 const firebaseConfig = {
   apiKey: "AIzaSyDTV8IdIsfFFU5X30dOckR5_9pmLqgidBY",
   authDomain: "pensionpro-1e559.firebaseapp.com",
@@ -79,36 +94,56 @@ const firebaseConfig = {
 };
 
 firebase.initializeApp(firebaseConfig);
+
+const auth = firebase.auth();
 const db = firebase.database();
 
-// SERVICE WORKER
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('service-worker.js');
-}
+let userId = null;
+let datos = [];
+let editIndex = null;
 
 fecha.value = new Date().toISOString().split('T')[0];
 
-let datos = JSON.parse(localStorage.getItem('pensionPRO')) || [];
-let editIndex = null;
-
-// 🔄 RESPALDO AUTOMÁTICO NUBE
-function respaldarNube(){
-  db.ref("pensionPRO").set(datos);
+// 🔐 LOGIN
+function login(){
+  const provider = new firebase.auth.GoogleAuthProvider();
+  auth.signInWithPopup(provider);
 }
 
-// ⬇️ RESTAURAR NUBE AL INICIAR
-db.ref("pensionPRO").once("value", snap=>{
-  if(snap.exists()){
-    datos = snap.val();
-    localStorage.setItem('pensionPRO', JSON.stringify(datos));
-    mostrar();
+// 🔓 LOGOUT
+function logout(){
+  auth.signOut();
+}
+
+// 🔄 CAMBIO DE SESIÓN
+auth.onAuthStateChanged(user=>{
+  if(user){
+    userId = user.uid;
+    loginBox.style.display="none";
+    app.style.display="block";
+    cargarDatos();
+  }else{
+    loginBox.style.display="block";
+    app.style.display="none";
   }
 });
+
+// ☁️ CARGAR DESDE NUBE
+function cargarDatos(){
+  db.ref("usuarios/"+userId+"/pension").once("value",snap=>{
+    datos = snap.val() || [];
+    mostrar();
+  });
+}
+
+// ☁️ GUARDAR EN NUBE
+function guardarNube(){
+  db.ref("usuarios/"+userId+"/pension").set(datos);
+}
 
 function registrar(){
   const p = parseFloat(porcentaje.value);
   const ing = parseFloat(ingreso.value);
-
   if(isNaN(p)||isNaN(ing)){alert("Completa datos");return;}
 
   const pen = ing*p/100;
@@ -123,15 +158,14 @@ function registrar(){
     libre:libre
   };
 
-  if(editIndex !== null){
-    datos[editIndex] = r;
-    editIndex = null;
+  if(editIndex!==null){
+    datos[editIndex]=r;
+    editIndex=null;
   }else{
     datos.push(r);
   }
 
-  localStorage.setItem('pensionPRO',JSON.stringify(datos));
-  respaldarNube();
+  guardarNube();
 
   resultado.innerHTML =
     `Pensión: $${pen.toFixed(2)}<br>Libre: $${libre.toFixed(2)}`;
@@ -160,19 +194,18 @@ function mostrar(){
 
 function editar(idx){
   const r = datos[idx];
-  porcentaje.value = r.porcentaje;
-  ingreso.value = r.ingreso;
-  periodo.value = r.periodo;
-  fecha.value = r.fecha;
-  editIndex = idx;
+  porcentaje.value=r.porcentaje;
+  ingreso.value=r.ingreso;
+  periodo.value=r.periodo;
+  fecha.value=r.fecha;
+  editIndex=idx;
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
 function eliminar(idx){
-  if(confirm("¿Eliminar este registro?")){
+  if(confirm("¿Eliminar registro?")){
     datos.splice(idx,1);
-    localStorage.setItem('pensionPRO',JSON.stringify(datos));
-    respaldarNube();
+    guardarNube();
     mostrar();
   }
 }
@@ -180,14 +213,11 @@ function eliminar(idx){
 function borrarTodo(){
   if(confirm("¿Borrar todo?")){
     datos=[];
-    localStorage.removeItem('pensionPRO');
-    respaldarNube();
+    guardarNube();
     mostrar();
     resultado.innerHTML="";
   }
 }
-
-mostrar();
 </script>
 
 </body>
