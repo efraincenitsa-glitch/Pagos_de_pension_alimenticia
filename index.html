@@ -23,7 +23,9 @@ header{background:var(--header);padding:16px;text-align:center;font-size:22px;fo
 input,select,button{width:100%;padding:12px;margin:6px 0;border:none;border-radius:10px;font-size:16px;}
 button{background:var(--ok);color:#fff;font-weight:bold;}
 .delete{background:var(--danger);}
+.edit{background:#3b82f6;}
 .item{background:#0f172a;padding:12px;border-radius:12px;margin-bottom:10px;}
+.small{padding:8px;margin-top:6px;}
 </style>
 </head>
 
@@ -68,6 +70,7 @@ if ('serviceWorker' in navigator) {
 fecha.value = new Date().toISOString().split('T')[0];
 
 let datos = JSON.parse(localStorage.getItem('pensionPRO')) || [];
+let editIndex = null;
 
 function registrar(){
   const p = parseFloat(porcentaje.value);
@@ -87,7 +90,13 @@ function registrar(){
     libre:libre
   };
 
-  datos.push(r);
+  if(editIndex !== null){
+    datos[editIndex] = r;
+    editIndex = null;
+  }else{
+    datos.push(r);
+  }
+
   localStorage.setItem('pensionPRO',JSON.stringify(datos));
 
   resultado.innerHTML =
@@ -98,7 +107,9 @@ function registrar(){
 
 function mostrar(){
   historial.innerHTML="";
-  datos.slice().reverse().forEach(r=>{
+  datos.slice().reverse().forEach((r,i)=>{
+    const idx = datos.length-1-i;
+
     historial.innerHTML+=`
     <div class="item">
     <b>${r.fecha}</b> (${r.periodo})<br>
@@ -106,8 +117,29 @@ function mostrar(){
     %: ${r.porcentaje}<br>
     Pensión: $${r.pension.toFixed(2)}<br>
     Libre: $${r.libre.toFixed(2)}
+
+    <button class="small edit" onclick="editar(${idx})">Modificar</button>
+    <button class="small delete" onclick="eliminar(${idx})">Eliminar</button>
     </div>`;
   });
+}
+
+function editar(idx){
+  const r = datos[idx];
+  porcentaje.value = r.porcentaje;
+  ingreso.value = r.ingreso;
+  periodo.value = r.periodo;
+  fecha.value = r.fecha;
+  editIndex = idx;
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function eliminar(idx){
+  if(confirm("¿Eliminar este registro?")){
+    datos.splice(idx,1);
+    localStorage.setItem('pensionPRO',JSON.stringify(datos));
+    mostrar();
+  }
 }
 
 function borrarTodo(){
