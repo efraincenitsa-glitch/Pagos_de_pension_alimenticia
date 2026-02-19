@@ -2,213 +2,189 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pensión PRO Privado</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Control de Pensión</title>
 
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#0f172a">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Pensión PRO">
-<link rel="apple-touch-icon" sizes="1024x1024" href="icono-1024.png">
+<!-- Icono para iPhone -->
+<link rel="apple-touch-icon" sizes="1024x1024" href="data:image/svg+xml,
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'>
+<rect width='512' height='512' rx='90' fill='%230b5cff'/>
+<text x='50%' y='52%' font-size='220' text-anchor='middle' fill='white' dy='.3em'>💰</text>
+</svg>">
 
 <style>
 body{
-  margin:0;
-  font-family:Arial;
-  background:#0f172a;
-  color:white;
-  text-align:center;
+    font-family: -apple-system, Arial;
+    background:#0b1220;
+    color:white;
+    margin:0;
+    padding:20px;
 }
-.container{
-  max-width:420px;
-  margin:auto;
-  padding:20px;
+
+h1{
+    text-align:center;
 }
+
 .card{
-  background:#1e293b;
-  padding:20px;
-  border-radius:20px;
-  box-shadow:0 0 25px rgba(0,0,0,0.5);
+    background:#16213e;
+    padding:15px;
+    border-radius:15px;
+    margin-bottom:20px;
 }
+
 input,select{
-  width:100%;
-  padding:14px;
-  margin:10px 0;
-  border-radius:12px;
-  border:none;
-  font-size:16px;
+    width:100%;
+    padding:10px;
+    margin:6px 0;
+    border-radius:10px;
+    border:none;
+    font-size:16px;
 }
+
 button{
-  width:100%;
-  padding:14px;
-  margin-top:10px;
-  border:none;
-  border-radius:12px;
-  font-size:18px;
-  font-weight:bold;
-  color:white;
+    width:100%;
+    padding:12px;
+    margin-top:10px;
+    border:none;
+    border-radius:12px;
+    background:#0b5cff;
+    color:white;
+    font-size:16px;
 }
-.green{background:#16a34a;}
-.red{background:#ef4444;}
-.blue{background:#2563eb;}
-table{
-  width:100%;
-  margin-top:15px;
-  border-collapse:collapse;
+
+.historial-item{
+    background:#1f2a4a;
+    padding:12px;
+    border-radius:12px;
+    margin-bottom:10px;
 }
-th,td{
-  padding:10px;
-  border-bottom:1px solid #334155;
+
+.small{
+    font-size:13px;
+    opacity:0.8;
 }
 </style>
 </head>
 
 <body>
 
-<div class="container">
-
-<h1>🔒 Pensión PRO Privado</h1>
-
-<button class="blue" onclick="login()">Acceso con Google</button>
-<button class="red" onclick="logout()">Cerrar sesión</button>
+<h1>💰 Control Pensión</h1>
 
 <div class="card">
+<label>Porcentaje (%)</label>
+<input type="number" id="porcentaje">
 
-<h2>Control de Pagos</h2>
+<label>Ingreso ($)</label>
+<input type="number" id="ingreso">
 
-<input id="monto" type="number" placeholder="Ingreso">
-<input id="porcentaje" type="number" placeholder="Porcentaje">
-
+<label>Periodicidad</label>
 <select id="periodo">
-  <option>Semanal</option>
-  <option>Catorcenal</option>
-  <option selected>Quincenal</option>
-  <option>Mensual</option>
+<option>Semanal</option>
+<option>Catorcenal</option>
+<option>Quincenal</option>
+<option>Mensual</option>
 </select>
 
-<button class="green" onclick="guardar()">Guardar pago</button>
+<button onclick="guardar()">Guardar registro</button>
+</div>
 
+<div class="card">
 <h2>Historial</h2>
-
-<table>
-<thead>
-<tr>
-<th>Fecha</th>
-<th>Pagar</th>
-<th>Libre</th>
-</tr>
-</thead>
-<tbody id="historial"></tbody>
-</table>
-
+<div id="lista"></div>
+<button onclick="borrarTodo()">Borrar historial</button>
 </div>
-</div>
-
-<!-- FIREBASE SDK -->
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
 <script>
+let datos = JSON.parse(localStorage.getItem("pensionDatos")) || [];
 
-// 🔴 PEGA AQUÍ TU CONFIGURACIÓN
-const firebaseConfig = {
-  apiKey: "TU_API_KEY",
-  authDomain: "TU_PROYECTO.firebaseapp.com",
-  projectId: "TU_PROYECTO",
-  storageBucket: "TU_PROYECTO.appspot.com",
-  messagingSenderId: "XXXX",
-  appId: "XXXX"
-};
-
-firebase.initializeApp(firebaseConfig);
-
-const auth = firebase.auth();
-const db = firebase.firestore();
-
-const correoPermitido = "jose.efrass@gmail.com";
-
-// LOGIN
-function login(){
-  const provider = new firebase.auth.GoogleAuthProvider();
-  auth.signInWithPopup(provider);
+function fechaActual(){
+    const f = new Date();
+    return f.toLocaleDateString("es-MX");
 }
 
-// LOGOUT
-function logout(){
-  auth.signOut();
+function calcularMensual(monto,periodo){
+    if(periodo==="Semanal") return monto*4.33;
+    if(periodo==="Catorcenal") return monto*2.17;
+    if(periodo==="Quincenal") return monto*2;
+    return monto;
 }
 
-// CONTROL DE USUARIO
-auth.onAuthStateChanged(user=>{
-  if(!user) return;
+function guardar(){
+    const p = parseFloat(porcentaje.value);
+    const i = parseFloat(ingreso.value);
+    const per = periodo.value;
 
-  if(user.email !== correoPermitido){
-    alert("Acceso denegado");
-    logout();
-    return;
-  }
+    if(!p || !i) return alert("Completa los datos");
 
-  cargarHistorial(user.uid);
-});
+    const pago = i*(p/100);
+    const libre = i - pago;
 
-// GUARDAR PAGO
-async function guardar(){
-
-  const user = auth.currentUser;
-  if(!user) return alert("Debes iniciar sesión");
-
-  const monto = parseFloat(document.getElementById("monto").value);
-  const porcentaje = parseFloat(document.getElementById("porcentaje").value);
-  const periodo = document.getElementById("periodo").value;
-
-  if(!monto || !porcentaje) return alert("Completa datos");
-
-  const pagar = monto * porcentaje / 100;
-  const libre = monto - pagar;
-
-  const fecha = new Date().toLocaleDateString();
-
-  await db.collection("pagos").add({
-    uid:user.uid,
-    fecha,
-    monto,
-    porcentaje,
-    periodo,
-    pagar,
-    libre,
-    timestamp:Date.now()
-  });
-
-  cargarHistorial(user.uid);
-}
-
-// CARGAR HISTORIAL
-function cargarHistorial(uid){
-
-  db.collection("pagos")
-    .where("uid","==",uid)
-    .orderBy("timestamp","desc")
-    .onSnapshot(snapshot=>{
-
-      const tabla = document.getElementById("historial");
-      tabla.innerHTML="";
-
-      snapshot.forEach(doc=>{
-        const d = doc.data();
-
-        tabla.innerHTML += `
-          <tr>
-            <td>${d.fecha}</td>
-            <td>$${d.pagar.toFixed(2)}</td>
-            <td>$${d.libre.toFixed(2)}</td>
-          </tr>
-        `;
-      });
-
+    datos.unshift({
+        fecha: fechaActual(),
+        porcentaje:p,
+        ingreso:i,
+        periodo:per,
+        pago,
+        libre,
+        mensual: calcularMensual(pago,per)
     });
+
+    localStorage.setItem("pensionDatos",JSON.stringify(datos));
+    porcentaje.value="";
+    ingreso.value="";
+    mostrar();
 }
 
+function eliminar(index){
+    if(confirm("Eliminar registro?")){
+        datos.splice(index,1);
+        localStorage.setItem("pensionDatos",JSON.stringify(datos));
+        mostrar();
+    }
+}
+
+function editar(index){
+    const d = datos[index];
+    porcentaje.value=d.porcentaje;
+    ingreso.value=d.ingreso;
+    periodo.value=d.periodo;
+    eliminar(index);
+}
+
+function borrarTodo(){
+    if(confirm("Borrar todo el historial?")){
+        datos=[];
+        localStorage.removeItem("pensionDatos");
+        mostrar();
+    }
+}
+
+function mostrar(){
+    lista.innerHTML="";
+    let total=0;
+
+    datos.forEach((d,i)=>{
+        total+=d.pago;
+
+        lista.innerHTML+=`
+        <div class="historial-item">
+            <b>${d.fecha}</b><br>
+            ${d.porcentaje}% de $${d.ingreso.toFixed(2)} (${d.periodo})<br>
+            💸 Pago: $${d.pago.toFixed(2)}<br>
+            🟢 Libre: $${d.libre.toFixed(2)}<br>
+            📊 Mensual aprox: $${d.mensual.toFixed(2)}
+            <div class="small">
+                <button onclick="editar(${i})">Editar</button>
+                <button onclick="eliminar(${i})">Eliminar</button>
+            </div>
+        </div>`;
+    });
+
+    if(datos.length)
+        lista.innerHTML += `<h3>Total pagado: $${total.toFixed(2)}</h3>`;
+}
+
+mostrar();
 </script>
 
 </body>
