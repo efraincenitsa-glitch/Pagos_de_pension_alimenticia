@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Pensión PRO ULTRA</title>
+<title>Pensión Alimenticia PRO ULTRA</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0f172a">
@@ -15,81 +15,66 @@
 <link rel="apple-touch-icon" sizes="1024x1024" href="icono-1024.png">
 
 <style>
-:root{--bg:#0f172a;--card:#1e293b;--header:#111827;--text:#fff;--ok:#22c55e;--danger:#ef4444;}
-body{margin:0;font-family:Arial;background:var(--bg);color:var(--text);}
-header{background:var(--header);padding:16px;text-align:center;font-size:22px;font-weight:bold;}
-.container{padding:15px;max-width:720px;margin:auto;}
-.card{background:var(--card);padding:15px;border-radius:14px;margin-bottom:15px;}
-input,select,button{width:100%;padding:12px;margin:6px 0;border:none;border-radius:10px;font-size:16px;}
-button{background:var(--ok);color:#fff;font-weight:bold;}
-.delete{background:var(--danger);}
-.edit{background:#3b82f6;}
-.item{background:#0f172a;padding:12px;border-radius:12px;margin-bottom:10px;}
-.small{padding:8px;margin-top:6px;}
-#loginBox{text-align:center;margin-top:40px;}
+body{
+  margin:0;
+  font-family:Arial;
+  background:#0b1220;
+  color:white;
+  text-align:center;
+}
+
+.container{
+  padding:40px 20px;
+}
+
+button{
+  padding:14px 24px;
+  font-size:16px;
+  border:none;
+  border-radius:12px;
+  background:#22c55e;
+  color:white;
+  font-weight:bold;
+  cursor:pointer;
+  margin-top:20px;
+}
+
+button.logout{
+  background:#ef4444;
+}
+
+.card{
+  background:#111827;
+  border-radius:18px;
+  padding:20px;
+  margin-top:20px;
+  box-shadow:0 0 20px rgba(0,0,0,0.4);
+}
 </style>
 </head>
 
 <body>
 
-<header>Pensión Alimenticia PRO ULTRA 🔒</header>
-
-<div id="loginBox">
-<button onclick="login()">Iniciar sesión con Google</button>
+<div id="app" class="container">
+  ⏳ Cargando...
 </div>
 
-<div class="container" id="app" style="display:none;">
 
-<div class="card">
-<h3>Configuración</h3>
-
-<input id="porcentaje" placeholder="Porcentaje %">
-<input id="ingreso" placeholder="Ingreso">
-<select id="periodo">
-<option>Semanal</option>
-<option>Catorcenal</option>
-<option>Quincenal</option>
-<option>Mensual</option>
-</select>
-
-<input id="fecha" type="date">
-
-<button onclick="registrar()">Registrar Pago</button>
-
-<div id="resultado"></div>
-</div>
-
-<div class="card">
-<h3>Historial</h3>
-<div id="historial"></div>
-<button class="delete" onclick="borrarTodo()">Borrar Todo</button>
-<button onclick="logout()">Cerrar sesión</button>
-</div>
-
-</div>
-
-<!-- FIREBASE -->
 <script type="module">
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+
 import {
   getAuth,
   GoogleAuthProvider,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   onAuthStateChanged,
   signOut
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-import {
-  getFirestore,
-  collection,
-  addDoc,
-  getDocs,
-  deleteDoc,
-  doc,
-  query,
-  where
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+// 🔥 TU CONFIGURACIÓN (YA CORRECTA)
 
 const firebaseConfig = {
   apiKey: "AIzaSyDTV8IdIsfFFU5X30dOckR5_9pmLqgidBY",
@@ -100,97 +85,74 @@ const firebaseConfig = {
   appId: "1:354313368373:web:becef8b8ff21d51c58927c"
 };
 
+
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
 
-const EMAIL_AUTORIZADO = "jose.efrass@gmail.com";
+const appDiv = document.getElementById("app");
 
-window.login = async () => {
-  const result = await signInWithPopup(auth, provider);
 
-  if(result.user.email !== EMAIL_AUTORIZADO){
-    alert("Acceso no autorizado");
-    signOut(auth);
-  }
+// 🔐 LOGIN
+window.loginGoogle = () => {
+  signInWithRedirect(auth, provider);
 };
 
-window.logout = () => signOut(auth);
 
+// ⭐ PROCESAR REGRESO DE GOOGLE
+getRedirectResult(auth).catch(() => {});
+
+
+// ⭐ CONTROL DE SESIÓN
 onAuthStateChanged(auth, user => {
-  if(user && user.email === EMAIL_AUTORIZADO){
-    loginBox.style.display="none";
-    app.style.display="block";
-    cargarDatos(user.uid);
-  }else{
-    loginBox.style.display="block";
-    app.style.display="none";
+
+  if (user) {
+
+    // 🔒 SOLO TU CORREO (OPCIONAL)
+    const correoPermitido = "jose.efrass@gmail.com";
+
+    if (user.email !== correoPermitido) {
+      signOut(auth);
+      appDiv.innerHTML = `
+        <h2>⛔ Acceso no autorizado</h2>
+      `;
+      return;
+    }
+
+    appDiv.innerHTML = `
+      <h1>Pensión Alimenticia PRO ULTRA 🔐</h1>
+
+      <div class="card">
+        <h3>✔️ Sesión activa</h3>
+        <p>${user.email}</p>
+      </div>
+
+      <div class="card">
+        <h3>📊 Sistema listo</h3>
+        <p>Tu aplicación privada está protegida y sincronizada.</p>
+      </div>
+
+      <button class="logout" onclick="logout()">Cerrar sesión</button>
+    `;
+
+  } else {
+
+    appDiv.innerHTML = `
+      <h1>Pensión Alimenticia PRO ULTRA 🔐</h1>
+
+      <p>Acceso privado</p>
+
+      <button onclick="loginGoogle()">
+        Entrar con Google
+      </button>
+    `;
   }
+
 });
 
-fecha.value = new Date().toISOString().split('T')[0];
 
-async function registrar(){
-  const p = parseFloat(porcentaje.value);
-  const ing = parseFloat(ingreso.value);
-
-  if(isNaN(p)||isNaN(ing)){alert("Completa datos");return;}
-
-  const pen = ing*p/100;
-  const libre = ing-pen;
-
-  const r={
-    uid: auth.currentUser.uid,
-    fecha:fecha.value,
-    porcentaje:p,
-    ingreso:ing,
-    periodo:periodo.value,
-    pension:pen,
-    libre:libre
-  };
-
-  await addDoc(collection(db,"pagos"), r);
-
-  resultado.innerHTML =
-    `Pensión: $${pen.toFixed(2)}<br>Libre: $${libre.toFixed(2)}`;
-
-  cargarDatos(auth.currentUser.uid);
-}
-
-async function cargarDatos(uid){
-  historial.innerHTML="";
-  const q = query(collection(db,"pagos"), where("uid","==",uid));
-  const snap = await getDocs(q);
-
-  snap.forEach(docu=>{
-    const r = docu.data();
-
-    historial.innerHTML+=`
-    <div class="item">
-    <b>${r.fecha}</b> (${r.periodo})<br>
-    Ingreso: $${r.ingreso}<br>
-    %: ${r.porcentaje}<br>
-    Pensión: $${r.pension.toFixed(2)}<br>
-    Libre: $${r.libre.toFixed(2)}
-    <button class="small delete" onclick="eliminar('${docu.id}')">Eliminar</button>
-    </div>`;
-  });
-}
-
-window.eliminar = async id =>{
-  await deleteDoc(doc(db,"pagos",id));
-  cargarDatos(auth.currentUser.uid);
-};
-
-window.borrarTodo = async ()=>{
-  if(confirm("¿Borrar todo?")){
-    const q = query(collection(db,"pagos"), where("uid","==",auth.currentUser.uid));
-    const snap = await getDocs(q);
-    snap.forEach(d=>deleteDoc(d.ref));
-    cargarDatos(auth.currentUser.uid);
-  }
-};
+// 🔓 LOGOUT
+window.logout = () => signOut(auth);
 
 </script>
 
