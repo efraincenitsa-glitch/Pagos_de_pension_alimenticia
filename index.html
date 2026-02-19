@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Pensión ULTRA PRO 🔐</title>
+<title>Pensión PRO ULTRA</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0f172a">
@@ -26,30 +26,22 @@ button{background:var(--ok);color:#fff;font-weight:bold;}
 .edit{background:#3b82f6;}
 .item{background:#0f172a;padding:12px;border-radius:12px;margin-bottom:10px;}
 .small{padding:8px;margin-top:6px;}
-.logout{background:#f59e0b;}
-.login{background:#3b82f6;}
+#loginBox{text-align:center;margin-top:40px;}
 </style>
 </head>
 
 <body>
 
-<header>Pensión Alimenticia 🔐 PRIVADA</header>
+<header>Pensión Alimenticia PRO ULTRA 🔒</header>
 
-<div class="container">
-
-<div id="loginBox" class="card" style="text-align:center">
-<h3>Acceso privado</h3>
-<button class="login" onclick="login()">Entrar con Google</button>
+<div id="loginBox">
+<button onclick="login()">Iniciar sesión con Google</button>
 </div>
 
-<div id="app" style="display:none">
+<div class="container" id="app" style="display:none;">
 
 <div class="card">
-<button class="logout" onclick="logout()">Cerrar sesión</button>
-</div>
-
-<div class="card">
-<h3>Registrar Pago</h3>
+<h3>Configuración</h3>
 
 <input id="porcentaje" placeholder="Porcentaje %">
 <input id="ingreso" placeholder="Ingreso">
@@ -71,85 +63,85 @@ button{background:var(--ok);color:#fff;font-weight:bold;}
 <h3>Historial</h3>
 <div id="historial"></div>
 <button class="delete" onclick="borrarTodo()">Borrar Todo</button>
+<button onclick="logout()">Cerrar sesión</button>
 </div>
 
 </div>
-</div>
 
-<!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<!-- FIREBASE -->
+<script type="module">
 
-<script>
-// 🔥 TU CONFIG
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  onAuthStateChanged,
+  signOut
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  getDocs,
+  deleteDoc,
+  doc,
+  query,
+  where
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
 const firebaseConfig = {
   apiKey: "AIzaSyDTV8IdIsfFFU5X30dOckR5_9pmLqgidBY",
   authDomain: "pensionpro-1e559.firebaseapp.com",
-  databaseURL: "https://pensionpro-1e559-default-rtdb.firebaseio.com",
   projectId: "pensionpro-1e559",
   storageBucket: "pensionpro-1e559.firebasestorage.app",
   messagingSenderId: "354313368373",
   appId: "1:354313368373:web:becef8b8ff21d51c58927c"
 };
 
-firebase.initializeApp(firebaseConfig);
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const provider = new GoogleAuthProvider();
 
-const auth = firebase.auth();
-const db = firebase.database();
+const EMAIL_AUTORIZADO = "jose.efrass@gmail.com";
 
-let userId = null;
-let datos = [];
-let editIndex = null;
+window.login = async () => {
+  const result = await signInWithPopup(auth, provider);
 
-fecha.value = new Date().toISOString().split('T')[0];
+  if(result.user.email !== EMAIL_AUTORIZADO){
+    alert("Acceso no autorizado");
+    signOut(auth);
+  }
+};
 
-// 🔐 LOGIN
-function login(){
-  const provider = new firebase.auth.GoogleAuthProvider();
-  auth.signInWithPopup(provider);
-}
+window.logout = () => signOut(auth);
 
-// 🔓 LOGOUT
-function logout(){
-  auth.signOut();
-}
-
-// 🔄 CAMBIO DE SESIÓN
-auth.onAuthStateChanged(user=>{
-  if(user){
-    userId = user.uid;
+onAuthStateChanged(auth, user => {
+  if(user && user.email === EMAIL_AUTORIZADO){
     loginBox.style.display="none";
     app.style.display="block";
-    cargarDatos();
+    cargarDatos(user.uid);
   }else{
     loginBox.style.display="block";
     app.style.display="none";
   }
 });
 
-// ☁️ CARGAR DESDE NUBE
-function cargarDatos(){
-  db.ref("usuarios/"+userId+"/pension").once("value",snap=>{
-    datos = snap.val() || [];
-    mostrar();
-  });
-}
+fecha.value = new Date().toISOString().split('T')[0];
 
-// ☁️ GUARDAR EN NUBE
-function guardarNube(){
-  db.ref("usuarios/"+userId+"/pension").set(datos);
-}
-
-function registrar(){
+async function registrar(){
   const p = parseFloat(porcentaje.value);
   const ing = parseFloat(ingreso.value);
+
   if(isNaN(p)||isNaN(ing)){alert("Completa datos");return;}
 
   const pen = ing*p/100;
   const libre = ing-pen;
 
   const r={
+    uid: auth.currentUser.uid,
     fecha:fecha.value,
     porcentaje:p,
     ingreso:ing,
@@ -158,25 +150,21 @@ function registrar(){
     libre:libre
   };
 
-  if(editIndex!==null){
-    datos[editIndex]=r;
-    editIndex=null;
-  }else{
-    datos.push(r);
-  }
-
-  guardarNube();
+  await addDoc(collection(db,"pagos"), r);
 
   resultado.innerHTML =
     `Pensión: $${pen.toFixed(2)}<br>Libre: $${libre.toFixed(2)}`;
 
-  mostrar();
+  cargarDatos(auth.currentUser.uid);
 }
 
-function mostrar(){
+async function cargarDatos(uid){
   historial.innerHTML="";
-  datos.slice().reverse().forEach((r,i)=>{
-    const idx = datos.length-1-i;
+  const q = query(collection(db,"pagos"), where("uid","==",uid));
+  const snap = await getDocs(q);
+
+  snap.forEach(docu=>{
+    const r = docu.data();
 
     historial.innerHTML+=`
     <div class="item">
@@ -185,39 +173,25 @@ function mostrar(){
     %: ${r.porcentaje}<br>
     Pensión: $${r.pension.toFixed(2)}<br>
     Libre: $${r.libre.toFixed(2)}
-
-    <button class="small edit" onclick="editar(${idx})">Modificar</button>
-    <button class="small delete" onclick="eliminar(${idx})">Eliminar</button>
+    <button class="small delete" onclick="eliminar('${docu.id}')">Eliminar</button>
     </div>`;
   });
 }
 
-function editar(idx){
-  const r = datos[idx];
-  porcentaje.value=r.porcentaje;
-  ingreso.value=r.ingreso;
-  periodo.value=r.periodo;
-  fecha.value=r.fecha;
-  editIndex=idx;
-  window.scrollTo({top:0,behavior:'smooth'});
-}
+window.eliminar = async id =>{
+  await deleteDoc(doc(db,"pagos",id));
+  cargarDatos(auth.currentUser.uid);
+};
 
-function eliminar(idx){
-  if(confirm("¿Eliminar registro?")){
-    datos.splice(idx,1);
-    guardarNube();
-    mostrar();
-  }
-}
-
-function borrarTodo(){
+window.borrarTodo = async ()=>{
   if(confirm("¿Borrar todo?")){
-    datos=[];
-    guardarNube();
-    mostrar();
-    resultado.innerHTML="";
+    const q = query(collection(db,"pagos"), where("uid","==",auth.currentUser.uid));
+    const snap = await getDocs(q);
+    snap.forEach(d=>deleteDoc(d.ref));
+    cargarDatos(auth.currentUser.uid);
   }
-}
+};
+
 </script>
 
 </body>
