@@ -5,259 +5,207 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pensión PRO Privado</title>
 
-<link rel="apple-touch-icon" sizes="1024x1024" href="icono.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0f172a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Pensión PRO">
+<link rel="apple-touch-icon" sizes="1024x1024" href="icono-1024.png">
 
 <style>
 body{
-    font-family:Arial;
-    background:#0f172a;
-    color:white;
-    text-align:center;
-    padding:20px;
+  margin:0;
+  font-family:Arial;
+  background:#0f172a;
+  color:white;
+  text-align:center;
 }
-
+.container{
+  max-width:420px;
+  margin:auto;
+  padding:20px;
+}
 .card{
-    background:#1e293b;
-    padding:20px;
-    border-radius:15px;
-    max-width:420px;
-    margin:auto;
-    box-shadow:0 0 25px rgba(0,0,0,.6);
+  background:#1e293b;
+  padding:20px;
+  border-radius:20px;
+  box-shadow:0 0 25px rgba(0,0,0,0.5);
 }
-
-input,select,button{
-    width:100%;
-    padding:12px;
-    margin:8px 0;
-    border-radius:8px;
-    border:none;
-    font-size:16px;
+input,select{
+  width:100%;
+  padding:14px;
+  margin:10px 0;
+  border-radius:12px;
+  border:none;
+  font-size:16px;
 }
-
 button{
-    background:#22c55e;
-    color:white;
-    font-weight:bold;
-    cursor:pointer;
+  width:100%;
+  padding:14px;
+  margin-top:10px;
+  border:none;
+  border-radius:12px;
+  font-size:18px;
+  font-weight:bold;
+  color:white;
 }
-
-button:hover{
-    background:#16a34a;
-}
-
-#logout{
-    background:#ef4444;
-}
-
-#app{
-    display:none;
-}
-
+.green{background:#16a34a;}
+.red{background:#ef4444;}
+.blue{background:#2563eb;}
 table{
-    width:100%;
-    margin-top:15px;
-    border-collapse:collapse;
+  width:100%;
+  margin-top:15px;
+  border-collapse:collapse;
 }
-
-td,th{
-    border-bottom:1px solid #334155;
-    padding:6px;
+th,td{
+  padding:10px;
+  border-bottom:1px solid #334155;
 }
-
 </style>
 </head>
 
 <body>
 
+<div class="container">
+
 <h1>🔒 Pensión PRO Privado</h1>
 
-<!-- LOGIN -->
-<div id="login" class="card">
+<button class="blue" onclick="login()">Acceso con Google</button>
+<button class="red" onclick="logout()">Cerrar sesión</button>
 
-    <h2>Acceso Privado</h2>
+<div class="card">
 
-    <button id="googleLogin">
-        🔐 Iniciar con Google
-    </button>
+<h2>Control de Pagos</h2>
 
-    <p>Solo autorizado para:<br>
-    <b>jose.efrass@gmail.com</b></p>
+<input id="monto" type="number" placeholder="Ingreso">
+<input id="porcentaje" type="number" placeholder="Porcentaje">
 
-</div>
+<select id="periodo">
+  <option>Semanal</option>
+  <option>Catorcenal</option>
+  <option selected>Quincenal</option>
+  <option>Mensual</option>
+</select>
 
-<!-- APP -->
-<div id="app" class="card">
+<button class="green" onclick="guardar()">Guardar pago</button>
 
-    <h2>Control de Pagos</h2>
+<h2>Historial</h2>
 
-    <input id="ingreso" type="number" placeholder="Monto ganado">
-
-    <input id="porcentaje" type="number" placeholder="Porcentaje (%)">
-
-    <select id="periodo">
-        <option value="Semanal">Semanal</option>
-        <option value="Catorcenal">Catorcenal</option>
-        <option value="Quincenal">Quincenal</option>
-        <option value="Mensual">Mensual</option>
-    </select>
-
-    <button onclick="guardar()">Guardar pago</button>
-
-    <button id="logout">Cerrar sesión</button>
-
-    <h3>Historial</h3>
-
-    <table id="tabla">
-        <tr>
-            <th>Fecha</th>
-            <th>Pagar</th>
-            <th>Libre</th>
-        </tr>
-    </table>
+<table>
+<thead>
+<tr>
+<th>Fecha</th>
+<th>Pagar</th>
+<th>Libre</th>
+</tr>
+</thead>
+<tbody id="historial"></tbody>
+</table>
 
 </div>
+</div>
 
-<!-- FIREBASE -->
-<script type="module">
+<!-- FIREBASE SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import {
-  getAuth,
-  GoogleAuthProvider,
-  signInWithPopup,
-  signOut,
-  onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+<script>
 
-import {
-  getFirestore,
-  collection,
-  addDoc,
-  getDocs,
-  query,
-  orderBy
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
-
+// 🔴 PEGA AQUÍ TU CONFIGURACIÓN
 const firebaseConfig = {
-  apiKey: "AIzaSyDTV8IdIsfFFU5X30dOckR5_9pmLqgidBY",
-  authDomain: "pensionpro-1e559.firebaseapp.com",
-  projectId: "pensionpro-1e559",
-  storageBucket: "pensionpro-1e559.firebasestorage.app",
-  messagingSenderId: "354313368373",
-  appId: "1:354313368373:web:becef8b8ff21d51c58927c"
+  apiKey: "TU_API_KEY",
+  authDomain: "TU_PROYECTO.firebaseapp.com",
+  projectId: "TU_PROYECTO",
+  storageBucket: "TU_PROYECTO.appspot.com",
+  messagingSenderId: "XXXX",
+  appId: "XXXX"
 };
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+firebase.initializeApp(firebaseConfig);
 
-const EMAIL_AUTORIZADO = "jose.efrass@gmail.com";
+const auth = firebase.auth();
+const db = firebase.firestore();
 
+const correoPermitido = "jose.efrass@gmail.com";
 
-// 🔐 LOGIN GOOGLE
+// LOGIN
+function login(){
+  const provider = new firebase.auth.GoogleAuthProvider();
+  auth.signInWithPopup(provider);
+}
 
-document.getElementById("googleLogin").onclick = async () => {
+// LOGOUT
+function logout(){
+  auth.signOut();
+}
 
-    const provider = new GoogleAuthProvider();
+// CONTROL DE USUARIO
+auth.onAuthStateChanged(user=>{
+  if(!user) return;
 
-    try{
-        await signInWithPopup(auth, provider);
-    }catch(e){
-        alert("Error al iniciar sesión");
-        console.error(e);
-    }
-};
+  if(user.email !== correoPermitido){
+    alert("Acceso denegado");
+    logout();
+    return;
+  }
 
-
-// 🔍 VERIFICAR SESIÓN
-
-onAuthStateChanged(auth, user => {
-
-    if(user){
-
-        if(user.email !== EMAIL_AUTORIZADO){
-
-            alert("⛔ No autorizado");
-            signOut(auth);
-            return;
-        }
-
-        document.getElementById("login").style.display="none";
-        document.getElementById("app").style.display="block";
-
-        cargar();
-
-    }else{
-
-        document.getElementById("login").style.display="block";
-        document.getElementById("app").style.display="none";
-    }
+  cargarHistorial(user.uid);
 });
 
+// GUARDAR PAGO
+async function guardar(){
 
-// 🚪 LOGOUT
+  const user = auth.currentUser;
+  if(!user) return alert("Debes iniciar sesión");
 
-document.getElementById("logout").onclick = () => signOut(auth);
+  const monto = parseFloat(document.getElementById("monto").value);
+  const porcentaje = parseFloat(document.getElementById("porcentaje").value);
+  const periodo = document.getElementById("periodo").value;
 
+  if(!monto || !porcentaje) return alert("Completa datos");
 
-// 💾 GUARDAR EN LA NUBE
+  const pagar = monto * porcentaje / 100;
+  const libre = monto - pagar;
 
-window.guardar = async () => {
+  const fecha = new Date().toLocaleDateString();
 
-    const ingreso = Number(document.getElementById("ingreso").value);
-    const porcentaje = Number(document.getElementById("porcentaje").value);
+  await db.collection("pagos").add({
+    uid:user.uid,
+    fecha,
+    monto,
+    porcentaje,
+    periodo,
+    pagar,
+    libre,
+    timestamp:Date.now()
+  });
 
-    if(!ingreso || !porcentaje){
-        alert("Completa los datos");
-        return;
-    }
+  cargarHistorial(user.uid);
+}
 
-    const pagar = ingreso * porcentaje / 100;
-    const libre = ingreso - pagar;
+// CARGAR HISTORIAL
+function cargarHistorial(uid){
 
-    await addDoc(collection(db,"pagos"),{
+  db.collection("pagos")
+    .where("uid","==",uid)
+    .orderBy("timestamp","desc")
+    .onSnapshot(snapshot=>{
 
-        fecha: new Date().toLocaleString(),
-        ingreso,
-        porcentaje,
-        pagar,
-        libre
-    });
+      const tabla = document.getElementById("historial");
+      tabla.innerHTML="";
 
-    alert("Guardado en la nube ☁️");
-
-    cargar();
-};
-
-
-// 📋 CARGAR HISTORIAL
-
-async function cargar(){
-
-    const tabla = document.getElementById("tabla");
-
-    tabla.innerHTML = `
-        <tr>
-            <th>Fecha</th>
-            <th>Pagar</th>
-            <th>Libre</th>
-        </tr>`;
-
-    const q = query(collection(db,"pagos"), orderBy("fecha"));
-
-    const datos = await getDocs(q);
-
-    datos.forEach(doc => {
-
+      snapshot.forEach(doc=>{
         const d = doc.data();
 
         tabla.innerHTML += `
-            <tr>
-                <td>${d.fecha}</td>
-                <td>$${d.pagar.toFixed(2)}</td>
-                <td>$${d.libre.toFixed(2)}</td>
-            </tr>`;
+          <tr>
+            <td>${d.fecha}</td>
+            <td>$${d.pagar.toFixed(2)}</td>
+            <td>$${d.libre.toFixed(2)}</td>
+          </tr>
+        `;
+      });
+
     });
 }
 
